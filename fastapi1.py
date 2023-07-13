@@ -1,11 +1,20 @@
 from typing import Union
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from bsedata.bse import BSE
 
 from datetime import datetime
 
 app = FastAPI()
+origins = ["*"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"], 
+    allow_headers=["*"],
+)
 
 bse = BSE(update_codes = True)
 
@@ -44,14 +53,15 @@ async def read_stock(id: int):
 async def read_stock_price_history(id: int, period: str):
     q = str(id)
     p = str(period)
-    if bse.verifyScripCode(q) and p in ['1M', '3M', '6M', '12M']:
-        price_history = bse.getPeriodTrend(q, p)
-        price_history_milliseconds_format = getRightFormat(price_history)
-        return price_history_milliseconds_format
-    elif p not in ['1M', '3M', '6M', '12M']:
+    if p not in ['1M', '3M', '6M', '12M']:
         raise HTTPException(status_code=404, detail="The permitted time periods are 1M, 3M, 6M & 12M")
-    else:
-        raise HTTPException(status_code=404, detail="Kindly check your BSE scrip code")
+    if not bse.verifyScripCode(q):
+        raise HTTPException(status_code=404, detail="Please check your BSE scrip code")
+    
+    price_history = bse.getPeriodTrend(q, p)
+    price_history_milliseconds_format = getRightFormat(price_history)
+    return price_history_milliseconds_format
+    
 
 @app.get("/bse/list/{performers}")
 async def read_bse_performers(performers: str):
@@ -65,6 +75,6 @@ async def read_bse_performers(performers: str):
     
 
 
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: Union[str, None] = None):
-    return {"item_id": item_id, "q": q}
+# @app.get("/items/{item_id}")
+# def read_item(item_id: int, q: Union[str, None] = None):
+#     return {"item_id": item_id, "q": q}
